@@ -1,0 +1,1 @@
+##To develop an AI-powered system that predicts and visualizes global supply chain risks using real-time data sources, sentiment analysis, and predictive modeling.

@@ -4,7 +4,15 @@
 /node_modules
 /.pnp
 .pnp.js
-
+/venv
+/venv/
+/venv/*
+/venv/bin/
+/venv/bin/*
+/venv/bin/activate
+/venv/bin/activate.bat
+/venv/bin/activate.fish
+/venv/bin/activate.ps1
 # testing
 /coverage
 

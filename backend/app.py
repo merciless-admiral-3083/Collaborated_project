@@ -1,7 +1,13 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
+from src.data_ingestion.fetch_news import fetch_news_for_country
+from src.ml_models.risk_predictor import compute_risk_from_news
+from dotenv import load_dotenv
+import os
 
+load_dotenv()
+NEWSAPI_KEY = os.getenv("NEWSAPI_KEY", "")
 app = FastAPI()
 
 app.add_middleware(
@@ -21,7 +27,22 @@ def read_root():
 
 @app.post("/api/analyze")
 def analyze_data(data: CountryData):
-    return {"country": data.country, "risk_score": 72.4, "status": "Moderate risk"}
+    country = data.country
+
+    # fetch news
+    articles = fetch_news_for_country(country, page_size=10)
+
+    print("DEBUG ARTICLES:", articles)  
+
+    risk = compute_risk_from_news(articles)
+
+    return {
+        "country": country,
+        "risk_score": risk["risk_score"],
+        "status": risk["status"],
+        "top_risk_factors": risk["top_risk_factors"],
+        "top_articles": risk["top_articles"],
+    }
 
 @app.get("/api/global_summary")
 def get_summary():

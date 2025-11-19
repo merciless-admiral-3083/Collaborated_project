@@ -51,3 +51,14 @@ def get_summary():
         "alerts_active": 8,
         "avg_risk_score": 64.3
     }
+
+@app.get("/api/risk_score/{country}")
+def get_risk_score(country: str):
+    articles = fetch_news_for_country(country, page_size=5)
+    risk = compute_risk_from_news(articles)
+
+    return {
+        "country": country,
+        "risk_score": risk["risk_score"],
+        "status": risk["status"]
+    }

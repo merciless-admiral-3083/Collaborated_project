@@ -1,3 +1,4 @@
+# backend/app.py
 from fastapi import FastAPI
 from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
@@ -28,24 +29,25 @@ def read_root():
 @app.post("/api/analyze")
 def analyze_data(data: CountryData):
     country = data.country
-
-    # fetch news
     articles = fetch_news_for_country(country, page_size=10)
-
-    print("DEBUG ARTICLES:", articles)  
-
+    # debug print you can remove later
+    print("DEBUG ARTICLES:", articles)
     risk = compute_risk_from_news(articles)
 
+    # return deterministic, fully-populated payload
     return {
         "country": country,
-        "risk_score": risk["risk_score"],
-        "status": risk["status"],
-        "top_risk_factors": risk["top_risk_factors"],
-        "top_articles": risk["top_articles"],
+        "risk_score": risk.get("risk_score"),
+        "status": risk.get("status"),
+        "risk_label": risk.get("risk_label"),      # added
+        "explanation": risk.get("explanation"),    # added
+        "top_risk_factors": risk.get("top_risk_factors"),
+        "top_articles": risk.get("top_articles"),
     }
 
 @app.get("/api/global_summary")
 def get_summary():
+    # placeholder summary, can be extended to return a country_risk_map later
     return {
         "total_ports": 120,
         "alerts_active": 8,
@@ -56,9 +58,8 @@ def get_summary():
 def get_risk_score(country: str):
     articles = fetch_news_for_country(country, page_size=5)
     risk = compute_risk_from_news(articles)
-
     return {
         "country": country,
-        "risk_score": risk["risk_score"],
-        "status": risk["status"]
+        "risk_score": risk.get("risk_score"),
+        "status": risk.get("status"),
     }

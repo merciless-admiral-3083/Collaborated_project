@@ -11,7 +11,6 @@ export default function RiskAnalyzer() {
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
 
-  // Automatically run analysis if "?country=XYZ" exists
   useEffect(() => {
     if (prefillCountry) {
       setCountry(prefillCountry);
@@ -67,21 +66,66 @@ export default function RiskAnalyzer() {
       )}
 
       {result && (
-        <div className="border p-6 rounded-lg mt-6 bg-gray-50 shadow">
-          <h2 className="text-2xl font-semibold mb-3">Risk Report</h2>
+        <div
+          style={{
+            marginTop: "30px",
+            padding: "20px",
+            border: "1px solid #ddd",
+            borderRadius: "10px",
+          }}
+        >
+          <h2>Risk Report</h2>
 
-          <p className="text-lg mb-2">
-            <strong>📊 Risk Score:</strong> {result.risk_score}
+          <p>
+            📊 <b>Risk Score:</b> {result.risk_score}
+          </p>
+          <p>
+            ⚠ <b>Risk Label:</b>{" "}
+            {result.risk_label || result.status || "Unavailable"}
           </p>
 
-          <p className="text-lg mb-2">
-            <strong>⚠ Risk Label:</strong> {result.risk_label}
+          <hr />
+
+          <h3>Top Risk Factors</h3>
+          <ul>
+            {result.top_risk_factors?.length > 0 ? (
+              result.top_risk_factors.map((f, i) => <li key={i}>{f}</li>)
+            ) : (
+              <p>No significant risk indicators found.</p>
+            )}
+          </ul>
+
+          <h3>Explanation</h3>
+          <p>
+            {result.explanation
+              ? result.explanation
+              : result.top_risk_factors?.length > 0
+              ? `These factors were detected in recent news for ${
+                  result.country || ""
+                }.`
+              : "No major supply chain risks detected based on current news."}
           </p>
 
-          <h3 className="text-xl font-bold mt-4 mb-2">Explanation</h3>
-          <p className="text-gray-700 whitespace-pre-line">
-            {result.explanation}
-          </p>
+          {result.top_articles?.length > 0 && (
+            <>
+              <h3 style={{ marginTop: 12 }}>Top Articles</h3>
+              <ul>
+                {result.top_articles.map((a, i) => (
+                  <li key={i}>
+                    <a
+                      href={a.url || "#"}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-blue-600 underline"
+                    >
+                      {a.title || "(no title)"}
+                    </a>
+                    <div className="text-sm text-gray-600">{a.source}</div>
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
         </div>
       )}
     </div>

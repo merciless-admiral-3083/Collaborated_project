@@ -1,0 +1,1 @@
+{"version":3,"file":"TextLabel.d.ts","sourceRoot":"","sources":["../../src/components/TextLabel.tsx"],"names":[],"mappings":"AACA,OAAO,KAAK,EAAE,cAAc,EAAE,MAAM,OAAO,CAAC;AAE5C,MAAM,WAAW,KAAM,SAAQ,cAAc,CAAC,MAAM,CAAC;IACnD,KAAK,EAAE,MAAM,CAAC;CACf;AAED,MAAM,CAAC,OAAO,UAAU,SAAS,CAAC,EAAE,KAAK,EAAE,GAAG,KAAK,EAAE,EAAE,KAAK,GAAG,GAAG,CAAC,OAAO,CAEzE"}

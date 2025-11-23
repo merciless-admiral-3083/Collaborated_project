@@ -1,70 +1,108 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid, ResponsiveContainer, BarChart, Bar } from "recharts";
+import {
+  LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid,
+  ResponsiveContainer, BarChart, Bar
+} from "recharts";
 
 export default function DashboardPage() {
   const [history, setHistory] = useState([]);
   const [top, setTop] = useState([]);
 
   useEffect(() => {
-    // top countries from global_summary placeholder — adapt if you have real endpoint
     fetch("/api/global_summary")
       .then(r => r.json())
       .then(data => {
-        // if server returns country_risk_map use it
-        if(data.country_risk_map){
-          const map = Object.entries(data.country_risk_map).map(([c, v]) => ({country: c, risk: v}));
-          setTop(map.sort((a,b)=>b.risk-a.risk).slice(0,8));
-        } else {
-          setTop([{country:"IN", risk:45},{country:"US", risk:70},{country:"CN", risk:50}]);
+        if (data.country_risk_map) {
+          const sorted = Object.entries(data.country_risk_map)
+            .map(([country, risk]) => ({ country, risk }))
+            .sort((a, b) => b.risk - a.risk)
+            .slice(0, 8);
+          setTop(sorted);
         }
       });
 
-    // example history for default country (India)
-    fetch(`/api/history/India?days=30`).then(r => {
-      if(r.ok) return r.json();
-      return [];
-    }).then(data => {
-      setHistory(data.reverse().map(d => ({date: d.ts.split("T")[0], risk: d.risk_score})));
-    }).catch(()=>{});
+    fetch(`/api/history/India?days=30`)
+      .then(r => r.json())
+      .then(data => {
+        setHistory(
+          data.reverse().map(d => ({
+            date: d.ts.split("T")[0],
+            risk: d.risk_score,
+          }))
+        );
+      });
   }, []);
 
   return (
-    <div className="p-8">
-      <h1 className="text-3xl font-bold mb-6">Dashboard</h1>
+    <div className="pb-20">
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="card p-4">
-          <h3 className="font-semibold mb-2">30-day Risk Trend (India)</h3>
-          <div style={{ width: "100%", height: 300 }}>
+      {/* PAGE TITLE */}
+      <div className="mb-10">
+        <h1 className="text-4xl font-bold">Dashboard</h1>
+        <p className="text-gray-500 mt-1">Global supply chain risk monitoring</p>
+      </div>
+
+      {/* KPI TILES */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-6 mb-10">
+        <KpiTile label="Countries Monitored" value="185+" />
+        <KpiTile label="Daily Data Points" value="12,400+" />
+        <KpiTile label="Active Alerts" value="17" color="text-red-500" />
+        <KpiTile label="AI Model" value="v3.2" />
+      </div>
+
+      {/* GRID */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
+
+        {/* LINE CHART */}
+        <div className="card touch-pan-y">
+          <h3 className="text-xl font-semibold mb-4">📉 30-Day Risk Trend (India)</h3>
+          <div className="w-full h-80">
             <ResponsiveContainer>
               <LineChart data={history}>
-                <CartesianGrid strokeDasharray="3 3" />
+                <CartesianGrid strokeDasharray="3 3" stroke="#ddd" />
                 <XAxis dataKey="date" />
                 <YAxis domain={[0, 100]} />
                 <Tooltip />
-                <Line type="monotone" dataKey="risk" stroke="#8884d8" />
+                <Line
+                  type="monotone"
+                  dataKey="risk"
+                  stroke="#2563eb"
+                  strokeWidth={3}
+                  dot={false}
+                />
               </LineChart>
             </ResponsiveContainer>
           </div>
         </div>
 
-        <div className="card p-4">
-          <h3 className="font-semibold mb-2">Top countries (latest)</h3>
-          <div style={{ width: "100%", height: 300 }}>
+        {/* BAR CHART */}
+        <div className="card touch-pan-y">
+          <h3 className="text-xl font-semibold mb-4">🔥 Top Countries (Highest Risk)</h3>
+          <div className="w-full h-80">
             <ResponsiveContainer>
               <BarChart data={top}>
-                <CartesianGrid strokeDasharray="3 3" />
+                <CartesianGrid strokeDasharray="3 3" stroke="#ddd" />
                 <XAxis dataKey="country" />
                 <YAxis domain={[0, 100]} />
                 <Tooltip />
-                <Bar dataKey="risk" />
+                <Bar dataKey="risk" fill="#ef4444" radius={[6, 6, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+/* ---- KPI TILE COMPONENT ---- */
+function KpiTile({ label, value, color = "text-blue-600" }) {
+  return (
+    <div className="bg-white dark:bg-neutral-900 border border-gray-200 dark:border-neutral-800 rounded-2xl p-5 shadow-sm hover:shadow-md transition cursor-default">
+      <div className="text-gray-500 text-sm">{label}</div>
+      <div className={`text-2xl font-bold mt-1 ${color}`}>{value}</div>
     </div>
   );
 }

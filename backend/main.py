@@ -8,14 +8,23 @@ from backend.src.ml_models.risk_predictor import compute_risk_from_news
 from backend.src.utils.store_history import init_db
 from backend.src.utils.store_history import store_risk
 from dotenv import load_dotenv
+from backend.src.utils.scheduler import start_scheduler, stop_scheduler, run_once_for_all
+
 import os
 
-from backend.src.utils.store_history import init_db
-init_db()
 
 load_dotenv()
 NEWSAPI_KEY = os.getenv("NEWSAPI_KEY", "")
 app = FastAPI()
+
+# ROUTERS (import AFTER app is created)
+from backend.app.routes.history import router as history_router
+from backend.app.routes.global_summary import router as global_summary_router
+
+app.include_router(history_router, prefix="/api")
+app.include_router(global_summary_router, prefix="/api")
+
+
 
 app.add_middleware(
     CORSMiddleware,
@@ -94,14 +103,6 @@ def analyze_data(data: CountryData):
     }
 
 
-@app.get("/api/global_summary")
-def get_summary():
-    # placeholder summary, can be extended to return a country_risk_map later
-    return {
-        "total_ports": 120,
-        "alerts_active": 8,
-        "avg_risk_score": 64.3
-    }
 
 @app.get("/api/risk_score/{country}")
 def get_risk_score(country: str):
@@ -112,11 +113,20 @@ def get_risk_score(country: str):
         "risk_score": risk.get("risk_score"),
         "status": risk.get("status"),
     }
-    
-from backend.src.utils.store_history import get_history
+# start scheduler on app startup
+@app.on_event("startup")
+def _on_startup():
+    # start periodic job every 6 hours (360 minutes)
+    try:
+        start_scheduler(interval_minutes=360)
+    except Exception as e:
+        print("Scheduler start failed:", e)
 
-@app.get("/api/history/{country}")
-def api_history(country: str, days: int = 30):
-    rows = get_history(country, days)
-    return rows
+# stop scheduler on shutdown
+@app.on_event("shutdown")
+def _on_shutdown():
+    try:
+        stop_scheduler()
+    except Exception:
+        pass
 

@@ -76,3 +76,60 @@ def train(save_model=True):
 
 if __name__ == "__main__":
     train()
+
+
+import pandas as pd
+import numpy as np
+import joblib
+import os
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import mean_absolute_error
+
+# Path to dataset
+DATA_PATH = os.path.join(os.path.dirname(__file__), "..", "data", "dataset.csv")
+
+# Path to save trained model
+MODEL_PATH = os.path.join(os.path.dirname(__file__), "regressor.pkl")
+
+
+def train_model():
+    print("Reading dataset from:", DATA_PATH)
+    df = pd.read_csv(DATA_PATH)
+
+    # ---- CLEANING ----
+    df = df.dropna()
+    
+    # Assuming the dataset has columns:
+    # ["port_delay", "political_risk", "fuel_cost", "demand_variation", "risk_score"]
+    X = df.drop("risk_score", axis=1)
+    y = df["risk_score"]
+
+    # ---- TRAIN / TEST SPLIT ----
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=0.2, random_state=42
+    )
+
+    # ---- MODEL ----
+    model = RandomForestRegressor(
+        n_estimators=300,
+        max_depth=10,
+        random_state=42
+    )
+
+    # ---- TRAIN ----
+    print("Training model...")
+    model.fit(X_train, y_train)
+
+    # ---- EVALUATE ----
+    preds = model.predict(X_test)
+    mae = mean_absolute_error(y_test, preds)
+    print(f"Model MAE: {mae}")
+
+    # ---- SAVE MODEL ----
+    joblib.dump(model, MODEL_PATH)
+    print("Model saved at:", MODEL_PATH)
+
+
+if __name__ == "__main__":
+    train_model()

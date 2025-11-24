@@ -52,3 +52,4 @@ def predict_text(text: str):
         "status": status,
         "risk_label": status,
     }
+

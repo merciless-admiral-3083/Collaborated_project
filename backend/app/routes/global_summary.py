@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from backend.app.db import client
+from app.db import client
 from datetime import datetime
 
 router = APIRouter()

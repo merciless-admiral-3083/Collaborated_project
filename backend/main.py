@@ -3,12 +3,17 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
-from backend.src.data_ingestion.fetch_news import fetch_news_for_country
-from backend.src.ml_models.risk_predictor import compute_risk_from_news
-from backend.src.utils.store_history import init_db
-from backend.src.utils.store_history import store_risk
+from src.data_ingestion.fetch_news import fetch_news_for_country
+from src.ml_models.risk_predictor import compute_risk_from_news
+from src.utils.store_history import init_db
+from src.utils.store_history import store_risk
 from dotenv import load_dotenv
-from backend.src.utils.scheduler import start_scheduler, stop_scheduler, run_once_for_all
+from src.utils.scheduler import start_scheduler, stop_scheduler, run_once_for_all
+import joblib
+from fastapi import BackgroundTasks
+from fastapi import HTTPException
+from ml.train import train as train_model  # path depends on file layout
+from deployed_model import predict_text, predict_from_features, MODEL_PATH
 
 import os
 
@@ -18,8 +23,8 @@ NEWSAPI_KEY = os.getenv("NEWSAPI_KEY", "")
 app = FastAPI()
 
 # ROUTERS (import AFTER app is created)
-from backend.app.routes.history import router as history_router
-from backend.app.routes.global_summary import router as global_summary_router
+from app.routes.history import router as history_router
+from app.routes.global_summary import router as global_summary_router
 
 app.include_router(history_router, prefix="/api")
 app.include_router(global_summary_router, prefix="/api")
@@ -45,7 +50,7 @@ def read_root():
 
 # optional model server
 try:
-    from backend.ml.deployed_model import predict_text as deployed_predict
+    from ml.deployed_model import predict_text as deployed_predict
     HAS_DEPLOYED_MODEL = True
 except Exception:
     HAS_DEPLOYED_MODEL = False
@@ -74,7 +79,7 @@ def analyze_data(data: CountryData):
             }
             # store to DB history (optional) - see DB section below
             try:
-                from backend.src.utils.store_history import store_risk  # we'll add this helper
+                from src.utils.store_history import store_risk  # we'll add this helper
                 store_risk(country, response["risk_score"])
             except Exception:
                 pass
@@ -87,7 +92,7 @@ def analyze_data(data: CountryData):
     risk = compute_risk_from_news(articles)
     # store to DB if possible
     try:
-        from backend.src.utils.store_history import store_risk
+        from src.utils.store_history import store_risk
         store_risk(country, risk["risk_score"])
     except Exception:
         pass
@@ -130,3 +135,44 @@ def _on_shutdown():
     except Exception:
         pass
 
+
+
+# Train endpoint (runs training synchronously or in background)
+@app.post("/api/train")
+def api_train(background: bool = True, background_tasks: BackgroundTasks = None):
+    """
+    Trigger model training. For production, protect this endpoint.
+    background=True will schedule training in background (uvicorn worker).
+    """
+    if background and background_tasks is not None:
+        background_tasks.add_task(train_model, True)
+        return {"status": "training_started_background"}
+    else:
+        model, metrics = train_model(save_model=True)
+        return {"status": "trained", "metrics": metrics}
+
+# Predict endpoint (accepts features or text)
+from pydantic import BaseModel
+class PredictRequest(BaseModel):
+    country: str = None
+    text: str = None
+    features: dict = None
+
+@app.post("/api/predict")
+def api_predict(req: PredictRequest):
+    # prefer features if provided
+    try:
+        if req.features:
+            out = predict_from_features(req.features)
+        else:
+            combined = (req.text or "") + (" " + (req.country or "") if req.country else "")
+            out = predict_text(combined, extras={})
+        # optionally store history (you have store_risk helper)
+        try:
+            from backend.src.utils.store_history import store_risk
+            store_risk(req.country or "UNKNOWN", out["risk_score"])
+        except Exception:
+            pass
+        return out
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

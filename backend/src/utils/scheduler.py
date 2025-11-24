@@ -5,9 +5,9 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from datetime import datetime
 from typing import List
 
-from backend.src.data_ingestion.fetch_news import fetch_news_for_country
-from backend.src.ml_models.risk_predictor import compute_risk_from_news
-from backend.src.utils.store_history import store_risk
+from src.data_ingestion.fetch_news import fetch_news_for_country
+from src.ml_models.risk_predictor import compute_risk_from_news
+from src.utils.store_history import store_risk
 
 log = logging.getLogger("scheduler")
 log.setLevel(logging.INFO)

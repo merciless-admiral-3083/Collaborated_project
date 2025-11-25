@@ -1,9 +1,11 @@
 # backend/src/utils/store_history.py
 import sqlite3
 import os
-from datetime import datetime
+from datetime import datetime, timezone
+from app.db import client
 
 DB_PATH = os.path.join("backend", "data", "history.sqlite")
+DB_NAME = "country_risk"
 
 def _conn():
     os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
@@ -11,31 +13,23 @@ def _conn():
     return conn
 
 def init_db():
-    conn = _conn()
-    cur = conn.cursor()
-    cur.execute("""
-    CREATE TABLE IF NOT EXISTS risk_history (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        country TEXT,
-        risk_score REAL,
-        ts TEXT
-    );
-    """)
-    conn.commit()
-    conn.close()
+    # triggers client import, used earlier - keep as no-op as client is global
+    try:
+        client.server_info()
+    except Exception as e:
+        print("Warning: MongoDB not reachable:", e)
 
 def store_risk(country: str, risk_score: float):
-    conn = _conn()
-    cur = conn.cursor()
-    cur.execute("INSERT INTO risk_history (country, risk_score, ts) VALUES (?, ?, ?)",
-                (country, float(risk_score), datetime.utcnow().isoformat()))
-    conn.commit()
-    conn.close()
+    db = client[DB_NAME]
+    col = db["history"]
+    col.insert_one({
+        "country": country,
+        "risk_score": float(risk_score),
+        "ts": datetime.now(timezone.utc).isoformat()
+    })
 
 def get_history(country: str, days: int = 30):
-    conn = _conn()
-    cur = conn.cursor()
-    cur.execute("SELECT ts, risk_score FROM risk_history WHERE country = ? ORDER BY ts DESC LIMIT ?", (country, days))
-    rows = cur.fetchall()
-    conn.close()
-    return [{"ts": r[0], "risk_score": r[1]} for r in rows]
+    db = client[DB_NAME]
+    col = db["history"]
+    docs = col.find({"country": country}).sort("ts", -1).limit(days)
+    return [{"ts": d["ts"], "risk_score": d.get("risk_score", 0)} for d in docs]

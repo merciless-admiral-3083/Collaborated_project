@@ -12,7 +12,7 @@ import joblib
 # -----------------------------
 from src.data_ingestion.fetch_news import fetch_news_for_country
 from src.ml_models.risk_predictor import compute_risk_from_news
-from src.utils.store_history import store_risk
+from src.utils.store_history import store_risk, init_db
 from src.utils.scheduler import start_scheduler, stop_scheduler
 
 # Routers
@@ -28,7 +28,15 @@ from deployed_model import predict_text, predict_from_features
 # -----------------------------
 load_dotenv()
 app = FastAPI()
+from app.routes.orders import router as orders_router
+from app.routes.shipments import router as shipments_router
+from app.routes.inventory import router as inventory_router
+from app.routes.auth import router as auth_router
 
+app.include_router(orders_router, prefix="/api")
+app.include_router(shipments_router, prefix="/api")
+app.include_router(inventory_router, prefix="/api")
+app.include_router(auth_router, prefix="")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -148,12 +156,12 @@ def get_risk_score(country: str):
 # STARTUP / SHUTDOWN TASKS
 # -----------------------------
 @app.on_event("startup")
-def _on_startup():
+def on_startup():
+    init_db()
     try:
         start_scheduler(interval_minutes=360)
-        print("⏳ Scheduler started.")
     except Exception as e:
-        print("Scheduler start failed:", e)
+        print("Scheduler error:", e)
 
 @app.on_event("shutdown")
 def _on_shutdown():

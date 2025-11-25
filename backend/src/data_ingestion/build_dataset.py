@@ -26,8 +26,8 @@ from typing import List, Dict, Any
 
 # Import existing project helpers
 try:
-    from backend.src.data_ingestion.fetch_news import fetch_news_for_country
-    from backend.src.ml_models.risk_predictor import compute_risk_from_news
+    from src.data_ingestion.fetch_news import fetch_news_for_country
+    from src.ml_models.risk_predictor import compute_risk_from_news
 except Exception:
     # fallback for alternative import path if running from different cwd
     from src.data_ingestion.fetch_news import fetch_news_for_country

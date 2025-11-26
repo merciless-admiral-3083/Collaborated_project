@@ -44,7 +44,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
 app.include_router(history_router, prefix="/api")
 app.include_router(global_summary_router, prefix="/api")
 

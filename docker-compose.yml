@@ -1,0 +1,30 @@
+services:
+  mongo:
+    image: mongo:6
+    container_name: collab_mongo
+    restart: always
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: root
+    volumes:
+      - mongo_data:/data/db
+
+  backend:
+    build: ./backend
+    container_name: collab_backend
+    restart: always
+    depends_on:
+      - mongo
+    ports:
+      - "8000:8000"
+    environment:
+      MONGO_URI: mongodb://root:root@mongo:27017
+      # Important: database name must match your db.py
+      DB_NAME: collabdb
+    volumes:
+      - ./backend:/app
+
+volumes:
+  mongo_data:

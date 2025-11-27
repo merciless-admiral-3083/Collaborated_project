@@ -6,33 +6,52 @@ import {
   ResponsiveContainer, BarChart, Bar
 } from "recharts";
 
+interface HistoryPoint {
+  date: string;
+  risk: number;
+}
+
+interface TopCountry {
+  country: string;
+  risk: number;
+}
+
 export default function DashboardPage() {
-  const [history, setHistory] = useState([]);
-  const [top, setTop] = useState([]);
+  const [history, setHistory] = useState<HistoryPoint[]>([]);
+  const [top, setTop] = useState<TopCountry[]>([]);
 
   useEffect(() => {
+    // --- Global Summary ---
     fetch("/api/global_summary")
-      .then(r => r.json())
-      .then(data => {
-        if (data.country_risk_map) {
+      .then((res) => res.json())
+      .then((data) => {
+        if (data?.country_risk_map) {
           const sorted = Object.entries(data.country_risk_map)
-            .map(([country, risk]) => ({ country, risk }))
+            .map(([country, risk]) => ({
+              country,
+              risk: Number(risk),
+            }))
             .sort((a, b) => b.risk - a.risk)
             .slice(0, 8);
+
           setTop(sorted);
         }
-      });
+      })
+      .catch((err) => console.error("Error loading global summary:", err));
 
+    // --- History ---
     fetch(`/api/history/India?days=30`)
-      .then(r => r.json())
-      .then(data => {
-        setHistory(
-          data.reverse().map(d => ({
+      .then((res) => res.json())
+      .then((data) => {
+        if (Array.isArray(data)) {
+          const formatted = data.reverse().map((d) => ({
             date: d.ts.split("T")[0],
             risk: d.risk_score,
-          }))
-        );
-      });
+          }));
+          setHistory(formatted);
+        }
+      })
+      .catch((err) => console.error("Error loading history:", err));
   }, []);
 
   return (
@@ -41,7 +60,9 @@ export default function DashboardPage() {
       {/* PAGE TITLE */}
       <div className="mb-10">
         <h1 className="text-4xl font-bold">Dashboard</h1>
-        <p className="text-gray-500 mt-1">Global supply chain risk monitoring</p>
+        <p className="text-gray-400 mt-1">
+          Global supply chain risk monitoring
+        </p>
       </div>
 
       {/* KPI TILES */}
@@ -57,7 +78,9 @@ export default function DashboardPage() {
 
         {/* LINE CHART */}
         <div className="card touch-pan-y">
-          <h3 className="text-xl font-semibold mb-4">📉 30-Day Risk Trend (India)</h3>
+          <h3 className="text-xl font-semibold mb-4">
+            📉 30-Day Risk Trend (India)
+          </h3>
           <div className="w-full h-80">
             <ResponsiveContainer>
               <LineChart data={history}>
@@ -79,7 +102,9 @@ export default function DashboardPage() {
 
         {/* BAR CHART */}
         <div className="card touch-pan-y">
-          <h3 className="text-xl font-semibold mb-4">🔥 Top Countries (Highest Risk)</h3>
+          <h3 className="text-xl font-semibold mb-4">
+            🔥 Top Countries (Highest Risk)
+          </h3>
           <div className="w-full h-80">
             <ResponsiveContainer>
               <BarChart data={top}>
@@ -87,20 +112,28 @@ export default function DashboardPage() {
                 <XAxis dataKey="country" />
                 <YAxis domain={[0, 100]} />
                 <Tooltip />
-                <Bar dataKey="risk" fill="#ef4444" radius={[6, 6, 0, 0]} />
+                <Bar
+                  dataKey="risk"
+                  fill="#ef4444"
+                  radius={[6, 6, 0, 0]}
+                />
               </BarChart>
             </ResponsiveContainer>
           </div>
         </div>
+
       </div>
     </div>
   );
 }
 
 /* ---- KPI TILE COMPONENT ---- */
-function KpiTile({ label, value, color = "text-blue-600" }) {
+function KpiTile(
+  { label, value, color = "text-blue-600" }:
+  { label: string; value: string; color?: string }
+) {
   return (
-    <div className="bg-white dark:bg-neutral-900 border border-gray-200 dark:border-neutral-800 rounded-2xl p-5 shadow-sm hover:shadow-md transition cursor-default">
+    <div className="bg-white dark:bg-neutral-900 border border-gray-200 dark:border-neutral-800 rounded-2xl p-5 shadow-sm hover:shadow-md transition">
       <div className="text-gray-500 text-sm">{label}</div>
       <div className={`text-2xl font-bold mt-1 ${color}`}>{value}</div>
     </div>

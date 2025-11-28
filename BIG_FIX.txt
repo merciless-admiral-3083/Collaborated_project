@@ -1,0 +1,24 @@
+1. delete and reinstall docker
+2. put this code in your terminal after installing docker 
+******
+# Stop Docker
+Stop-Service com.docker.service -Force
+
+# Move the data
+Move-Item "C:\ProgramData\Docker" "D:\Docker"
+
+# Configure Docker daemon to use new location
+$config = @"
+{
+  "data-root": "D:\Docker"
+}
+"@
+
+New-Item -Path "C:\ProgramData\Docker\config" -ItemType Directory -Force | Out-Null
+Set-Content -Path "C:\ProgramData\Docker\config\daemon.json" -Value $config -Force
+
+# Restart Docker
+Start-Service com.docker.service
+*******
+
+3. 

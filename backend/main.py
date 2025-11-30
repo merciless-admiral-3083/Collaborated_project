@@ -481,3 +481,29 @@ class UserLogin(BaseModel):
 def login_user(user: UserLogin):
     # Here you can add DB/auth logic
     return {"message": "Login successful", "email": user.email}
+
+@app.get("/test")
+def test():
+    return {"message": "Backend connected successfully!"}
+
+
+# # main.py
+# from fastapi import FastAPI
+# from fastapi.middleware.cors import CORSMiddleware
+
+# app = FastAPI()
+
+# # ------------------- CORS -------------------
+# app.add_middleware(
+#     CORSMiddleware,
+#     allow_origins=["http://localhost:3000"],  # frontend dev URL
+#     allow_credentials=True,
+#     allow_methods=["*"],
+#     allow_headers=["*"],
+# )
+# # -------------------------------------------
+
+# # Example route
+# @app.get("/hello")
+# async def hello():
+#     return {"message": "Hello from FastAPI!"}

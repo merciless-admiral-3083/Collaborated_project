@@ -54,6 +54,9 @@ export default function DashboardPage() {
       .catch((err) => console.error("Error loading history:", err));
   }, []);
 
+
+
+
   return (
     <div className="pb-20">
 
@@ -139,3 +142,5 @@ function KpiTile(
     </div>
   );
 }
+
+

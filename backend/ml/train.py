@@ -1,10 +1,9 @@
 # backend/ml/train.py
+
 import os
 import pandas as pd
 import joblib
 import json
-from sklearn.pipeline import Pipeline
-from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_absolute_error, r2_score
@@ -12,13 +11,8 @@ from sklearn.metrics import mean_absolute_error, r2_score
 BASE = os.path.dirname(__file__)
 DATA_CSV = os.path.join(BASE, "..", "data", "dataset.csv")
 MODEL_PKL = os.path.join(BASE, "model.pkl")
-VECTORIZER_PKL = os.path.join(BASE, "vectorizer.pkl")
 
 def train(save_model=True):
-    """
-    Train pipeline: TF-IDF (text) -> RandomForestRegressor.
-    Expects dataset.csv with columns: 'text' and 'risk_score' (0-100).
-    """
     if not os.path.exists(DATA_CSV):
         raise FileNotFoundError(f"Dataset not found at {DATA_CSV}")
 
@@ -36,30 +30,25 @@ def train(save_model=True):
     X = df[feature_cols].values
     y = df["risk_score"].values
 
-
     X_train, X_test, y_train, y_test = train_test_split(
         X, y, test_size=0.15, random_state=42
     )
 
-    pipeline = RandomForestRegressor(
-    n_estimators=200,
-    max_depth=20,
-    random_state=42
+    model = RandomForestRegressor(
+        n_estimators=200,
+        max_depth=20,
+        random_state=42
     )
 
+    model.fit(X_train, y_train)
 
-    pipeline.fit(X_train, y_train)
-
-    preds = pipeline.predict(X_test)
+    preds = model.predict(X_test)
     mae = mean_absolute_error(y_test, preds)
     r2 = r2_score(y_test, preds)
 
     if save_model:
-        # Save the whole pipeline as model.pkl (easiest)
-        joblib.dump(pipeline, MODEL_PKL)
-        
-        # Save metadata about training for reference
-        # (features are predefined, not learned from text, so no vectorizer needed)
+        joblib.dump(model, MODEL_PKL)
+
         training_info = {
             "feature_cols": feature_cols,
             "mae": float(mae),
@@ -67,20 +56,16 @@ def train(save_model=True):
             "n_train": len(X_train),
             "n_test": len(X_test)
         }
-        joblib.dump(training_info, os.path.join(BASE, "training_metadata.pkl"))
-        
-        # Save metrics to JSON for easy tracking
-        metrics_file = os.path.join(BASE, "metrics.json")
-        try:
-            with open(metrics_file, "w") as f:
-                json.dump(training_info, f, indent=2)
-            print(f"✅ Saved metrics to {metrics_file}")
-        except Exception as e:
-            print(f"⚠ Failed to save metrics: {e}")
 
-    metrics = {"mae": mae, "r2": r2, "n_train": len(X_train)}
-    print("Training finished:", metrics)
-    return pipeline, metrics
+        joblib.dump(training_info, os.path.join(BASE, "training_metadata.pkl"))
+
+        with open(os.path.join(BASE, "metrics.json"), "w") as f:
+            json.dump(training_info, f, indent=2)
+
+        print("Saved model and metrics.")
+
+    print("Training complete:", {"mae": mae, "r2": r2})
+    return model
 
 if __name__ == "__main__":
-    train(save_model=True)
+    train()

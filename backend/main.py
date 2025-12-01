@@ -1,6 +1,4 @@
 from fastapi import FastAPI, BackgroundTasks, HTTPException
-from app.database.db import db
-prediction_collection = db["prediction_history"]
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from dotenv import load_dotenv
@@ -258,6 +256,12 @@ def predict(data: dict):
     features = data["features"]
     pred = model.predict([features])[0]
     return {"prediction": float(pred)}
+
+
+
+@app.get("/api/predict")
+async def predict_get():
+    return {"message": "This endpoint only accepts POST with data"}
 
 
 # -----------------------------

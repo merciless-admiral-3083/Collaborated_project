@@ -2,6 +2,7 @@
 import os
 import pandas as pd
 import joblib
+import json
 from sklearn.pipeline import Pipeline
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.ensemble import RandomForestRegressor
@@ -56,6 +57,26 @@ def train(save_model=True):
     if save_model:
         # Save the whole pipeline as model.pkl (easiest)
         joblib.dump(pipeline, MODEL_PKL)
+        
+        # Save metadata about training for reference
+        # (features are predefined, not learned from text, so no vectorizer needed)
+        training_info = {
+            "feature_cols": feature_cols,
+            "mae": float(mae),
+            "r2": float(r2),
+            "n_train": len(X_train),
+            "n_test": len(X_test)
+        }
+        joblib.dump(training_info, os.path.join(BASE, "training_metadata.pkl"))
+        
+        # Save metrics to JSON for easy tracking
+        metrics_file = os.path.join(BASE, "metrics.json")
+        try:
+            with open(metrics_file, "w") as f:
+                json.dump(training_info, f, indent=2)
+            print(f"✅ Saved metrics to {metrics_file}")
+        except Exception as e:
+            print(f"⚠ Failed to save metrics: {e}")
 
     metrics = {"mae": mae, "r2": r2, "n_train": len(X_train)}
     print("Training finished:", metrics)

@@ -1,1 +1,14 @@
-{"mse": 63.86536325832084, "r2": 0.3194254096680147}
+{
+  "feature_cols": [
+    "news_negative_pct",
+    "keyword_score",
+    "weather_risk",
+    "port_delay_index",
+    "supplier_concentration",
+    "hist_delay"
+  ],
+  "mae": 6.529081866266289,
+  "r2": 0.30975611933409597,
+  "n_train": 1700,
+  "n_test": 300
+}

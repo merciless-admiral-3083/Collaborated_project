@@ -314,22 +314,41 @@ app.include_router(global_summary_router, prefix="/api")
 import os
 
 # -----------------------------
-# MODEL LOADING
+# MODEL LOADING (robust)
 # -----------------------------
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
-MODEL_PATH = "backend/ml/model.pkl"
-VECTORIZER_PATH = "backend/ml/vectorizer.pkl"
+MODEL_PATH = os.path.join(BASE_DIR, "ml", "model.pkl")
+VECTORIZER_PATH = os.path.join(BASE_DIR, "ml", "vectorizer.pkl")
+
+# Try loading model and vectorizer independently so we can provide
+# clearer logging and fallbacks (e.g. use embedder-based predictor).
+model = None
+vectorizer = None
+model_loaded = False
+vectorizer_loaded = False
 
 try:
     model = joblib.load(MODEL_PATH)
-    vectorizer = joblib.load(VECTORIZER_PATH)
-    HAS_DEPLOYED_MODEL = True
-    print("✅ ML model loaded successfully.")
-except:
+    model_loaded = True
+    print(f"✅ Loaded pipeline model: {MODEL_PATH}")
+except Exception as e:
     model = None
+    print(f"⚠ Model load failed ({MODEL_PATH}):", e)
+
+try:
+    vectorizer = joblib.load(VECTORIZER_PATH)
+    vectorizer_loaded = True
+    print(f"✅ Loaded vectorizer: {VECTORIZER_PATH}")
+except Exception as e:
     vectorizer = None
-    HAS_DEPLOYED_MODEL = False
-    print("⚠ No trained ML model found. Using heuristic only.")
+    # Note: vectorizer is optional. If model exists but vectorizer doesn't,
+    # it means the model is feature-based (RandomForest) not text-based.
+    print(f"⚠ Vectorizer not available ({VECTORIZER_PATH}): will use embedder or heuristic")
+
+# Model is usable if it loaded; vectorizer is optional.
+HAS_DEPLOYED_MODEL = model_loaded
+if not HAS_DEPLOYED_MODEL:
+    print("⚠ No model available. Will try embedder regressor or heuristic.")
 
 # -----------------------------
 # BASIC TEST ROUTE
@@ -354,17 +373,60 @@ def analyze_data(data: CountryData):
         for a in articles
     )
 
-    # AI MODEL PREDICTION
-    if HAS_DEPLOYED_MODEL:
+    # AI MODEL PREDICTION - use feature-based model if available
+    if HAS_DEPLOYED_MODEL and model is not None:
         try:
-            X = vectorizer.transform([combined])
-            risk_score = float(model.predict(X)[0])
+            # Extract heuristic summary (explanation + top articles) and compute features
             heuristic = compute_risk_from_news(articles)
+
+            # Compute simple text-derived features: negative sentiment pct and keyword score.
+            try:
+                from textblob import TextBlob
+            except Exception:
+                TextBlob = None
+
+            # sentiment -> negative pct
+            try:
+                if TextBlob is not None:
+                    # combine title+description for sentiment
+                    text_for_sentiment = "\n".join((a.get("title") or "") + " " + (a.get("description") or "") for a in articles)
+                    sentiment = TextBlob(text_for_sentiment).sentiment.polarity
+                    news_negative_pct = max(0.0, -sentiment * 100)
+                else:
+                    news_negative_pct = 10.0
+            except Exception:
+                news_negative_pct = 10.0
+
+            # keyword score (simple count * weight)
+            kw_list = ["strike","delay","congestion","shortage","conflict","sanction","flood","earthquake","shutdown","protest","blockade","war","policy","inflation"]
+            kw_score = 0
+            combined_lower = combined.lower()
+            for kw in kw_list:
+                if kw in combined_lower:
+                    kw_score += 10
+
+            # other features: use reasonable defaults or lookups when available
+            weather_risk = 0
+            port_delay_index = 5
+            supplier_concentration = 0.3
+            hist_delay = 5
+
+            X = [[
+                news_negative_pct,
+                kw_score,
+                weather_risk,
+                port_delay_index,
+                supplier_concentration,
+                hist_delay,
+            ]]
+            
+            risk_score = float(model.predict(X)[0])
+            risk_score = max(0.0, min(100.0, risk_score))  # Clamp to 0-100
 
             response = {
                 "country": country,
                 "risk_score": round(risk_score, 2),
-                "status": "AI Model",
+                "status": "AI Model (feature-based)",
                 "risk_label": heuristic.get("status"),
                 "explanation": heuristic.get("explanation", ""),
                 "top_risk_factors": heuristic.get("top_risk_factors", []),
@@ -375,7 +437,21 @@ def analyze_data(data: CountryData):
             return response
 
         except Exception as e:
-            print("⚠ ML model error:", e)
+            print("⚠ Model prediction error:", e)
+
+    # If the feature-based model isn't available, try the embedder-based regressor
+    try:
+        emb_out = predict_text(combined, extras={})
+        if emb_out and isinstance(emb_out, dict) and "risk_score" in emb_out:
+            emb_out.setdefault("country", country)
+            emb_out.setdefault("status", "AI Model (embedder)")
+            try:
+                store_risk(country, emb_out["risk_score"])
+            except Exception:
+                pass
+            return emb_out
+    except Exception as e:
+        print("⚠ Embedder regressor failed:", e)
 
     # FALLBACK HEURISTIC
     risk = compute_risk_from_news(articles)

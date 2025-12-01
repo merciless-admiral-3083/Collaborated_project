@@ -1,4 +1,6 @@
 from fastapi import FastAPI, BackgroundTasks, HTTPException
+from app.database.db import db
+prediction_collection = db["prediction_history"]
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from dotenv import load_dotenv
@@ -250,6 +252,13 @@ def api_predict(req: PredictRequest):
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+    
+@app.post("/predict")
+def predict(data: dict):
+    features = data["features"]
+    pred = model.predict([features])[0]
+    return {"prediction": float(pred)}
+
 
 # -----------------------------
 # USER AUTH ROUTES
@@ -273,3 +282,28 @@ def login_user(user: UserLogin):
 def test():
     return {"message": "Backend connected successfully!"}
 
+from routes.predict import router as predict_router
+app.include_router(predict_router, prefix="/api")
+
+
+
+# # main.py
+# from fastapi import FastAPI
+# from fastapi.middleware.cors import CORSMiddleware
+
+# app = FastAPI()
+
+# # ------------------- CORS -------------------
+# app.add_middleware(
+#     CORSMiddleware,
+#     allow_origins=["http://localhost:3000"],  # frontend dev URL
+#     allow_credentials=True,
+#     allow_methods=["*"],
+#     allow_headers=["*"],
+# )
+# # -------------------------------------------
+
+# # Example route
+# @app.get("/hello")
+# async def hello():
+#     return {"message": "Hello from FastAPI!"}

@@ -10,4 +10,4 @@ backend/__pycache__/main.cpython-310.pyc
 backend/app/__pycache__/db.cpython-310.pyc
 backend/app/routes/__pycache__/orders.cpython-310.pyc
 
-.env.local
+.env.local__pycache__/

@@ -253,9 +253,27 @@ def api_predict(req: PredictRequest):
     
 @app.post("/predict")
 def predict(data: dict):
-    features = data["features"]
+    f = data["features"]
+
+    # Allow both dict and list
+    if isinstance(f, dict):
+        features = [
+            f["news_negative_pct"],
+            f["keyword_score"],
+            f["weather_risk"],
+            f["port_delay_index"],
+            f["supplier_concentration"],
+            f["hist_delay"]
+        ]
+    elif isinstance(f, list):
+        features = f
+    else:
+        raise ValueError("Invalid format for 'features'")
+
     pred = model.predict([features])[0]
+
     return {"prediction": float(pred)}
+
 
 
 

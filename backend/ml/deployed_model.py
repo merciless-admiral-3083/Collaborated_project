@@ -1,112 +1,68 @@
 import os
-import numpy as np
+import json
 import joblib
-from typing import Dict
-from sentence_transformers import SentenceTransformer
+import numpy as np
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+import os
 
-# -----------------------------
-# Load Embedder
-# -----------------------------
-EMBEDDER_NAME_FILE = os.path.join(BASE_DIR, "embedder_name.txt")
-MODEL_PKL = os.path.join(BASE_DIR, "regressor.pkl")
+BASE_DIR = os.path.dirname(__file__)
+MODEL_DIR = os.path.join(BASE_DIR, "models")
+MODEL_VERSION = "v1"
 
-embedder = None
-regressor = None
-
-# Load embedder name
-try:
-    with open(EMBEDDER_NAME_FILE, "r") as f:
-        EMBEDDER_NAME = f.read().strip()
-    embedder = SentenceTransformer(EMBEDDER_NAME)
-    print(f"✅ Loaded sentence embedder: {EMBEDDER_NAME}")
-except Exception as e:
-    print("⚠ Failed to load embedder:", e)
-    embedder = None
-
-# Load ML regressor
-try:
-    regressor = joblib.load(MODEL_PKL)
-    print(f"✅ Loaded ML regressor model: {MODEL_PKL}")
-except Exception as e:
-    print("⚠ Failed to load regressor model:", e)
-    regressor = None
+MODEL_PATH = os.path.join(MODEL_DIR, f"risk_model_{MODEL_VERSION}.pkl")
+FEATURE_IMPORTANCE_PATH = os.path.join(
+    MODEL_DIR, f"feature_importance_{MODEL_VERSION}.json"
+)
+FEATURE_NAMES_PATH = os.path.join(MODEL_DIR, "feature_names.json")
 
 
-# --------------------------------------
-#           MAIN PREDICT FUNCTION
-# --------------------------------------
-def predict_text(text: str) -> Dict:
-    """
-    Returns:
-        {
-            "risk_score": float 0–100,
-            "status": "Low risk" | "Moderate risk" | "High risk",
-            "risk_label": same as status
-        }
-    """
+class RiskModel:
+    def __init__(self):
+        self.model = joblib.load(MODEL_PATH)
 
-    # -----------------------------
-    # Handle empty text
-    # -----------------------------
-    if not text or not text.strip():
+        with open(FEATURE_IMPORTANCE_PATH, "r") as f:
+            self.feature_importance = json.load(f)
+
+        with open(FEATURE_NAMES_PATH, "r") as f:
+            self.feature_names = json.load(f)
+
+    def predict(self, input_data: dict):
+        # Ensure correct feature order
+        features = np.array(
+            [[input_data[feature] for feature in self.feature_names]]
+        )
+
+        probability = self.model.predict_proba(features)[0][1]
+
+        risk_level = self._map_risk_level(probability)
+
+        top_drivers = self._get_top_drivers(input_data)
+
         return {
-            "risk_score": 10.0,
-            "status": "Low risk",
-            "risk_label": "Low risk",
+            "model_version": MODEL_VERSION,
+            "risk_probability": float(probability),
+            "risk_level": risk_level,
+            "top_risk_drivers": top_drivers,
         }
 
-    # -----------------------------
-    # Fallback if model not loaded
-    # -----------------------------
-    if embedder is None or regressor is None:
-        return {
-            "risk_score": 20.0,
-            "status": "Low risk",
-            "risk_label": "Low risk",
+    def _map_risk_level(self, probability):
+        if probability < 0.3:
+            return "Low"
+        elif probability < 0.6:
+            return "Medium"
+        else:
+            return "High"
+
+    def _get_top_drivers(self, input_data):
+        # Multiply feature value by importance to estimate contribution
+        contributions = {
+            feature: input_data[feature] * self.feature_importance[feature]
+            for feature in self.feature_names
         }
 
-    # -----------------------------
-    # Embed text
-    # -----------------------------
-    try:
-        emb = embedder.encode([text])
-        emb = np.array(emb)
-    except Exception as e:
-        print("⚠ Embedding failed:", e)
-        return {
-            "risk_score": 15.0,
-            "status": "Low risk",
-            "risk_label": "Low risk",
-        }
+        # Sort descending
+        sorted_features = sorted(
+            contributions.items(), key=lambda x: x[1], reverse=True
+        )
 
-    # -----------------------------
-    # Predict using regressor
-    # -----------------------------
-    try:
-        pred = float(regressor.predict(emb)[0])
-    except Exception as e:
-        print("⚠ Prediction failed:", e)
-        return {
-            "risk_score": 18.0,
-            "status": "Low risk",
-            "risk_label": "Low risk",
-        }
-
-    # Clamp to 0–100
-    pred = max(0.0, min(100.0, pred))
-
-    # Convert numeric → status
-    if pred < 30:
-        status = "Low risk"
-    elif pred < 60:
-        status = "Moderate risk"
-    else:
-        status = "High risk"
-
-    return {
-        "risk_score": round(pred, 2),
-        "status": status,
-        "risk_label": status,
-    }
+        return [feature for feature, _ in sorted_features[:3]]

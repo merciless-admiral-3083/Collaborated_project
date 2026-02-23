@@ -1,0 +1,3 @@
+23 Feb 20:44
+1. Edited train.py and then executed Item
+2. changed deployed_mode.py

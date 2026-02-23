@@ -24,14 +24,15 @@ from app.routes.auth import router as auth_router
 
 # ML training + predictor functions
 from ml.train import train as train_model
-from deployed_model import predict_text, predict_from_features
-
-# -----------------------------
+from ml.deployed_model import RiskModel# -----------------------------
 # ENV + APP INIT
 # -----------------------------
 load_dotenv()
 app = FastAPI()
-
+# -----------------------------
+# LOAD NEW RISK MODEL
+# -----------------------------
+risk_model = RiskModel()
 # CORS
 app.add_middleware(
     CORSMiddleware,
@@ -53,25 +54,7 @@ import os
 # -----------------------------
 # MODEL LOADING (robust)
 # -----------------------------
-BASE_DIR = os.path.abspath(os.path.dirname(__file__))
-MODEL_PATH = os.path.join(BASE_DIR, "ml", "model.pkl")
-model = None
-model_loaded = False
 
-try:
-    model = joblib.load(MODEL_PATH)
-    model_loaded = True
-    print(f"✅ Loaded pipeline model: {MODEL_PATH}")
-except Exception as e:
-    model = None
-    print(f"⚠ Model load failed ({MODEL_PATH}):", e)
-
-
-
-# Model is usable if it loaded; vectorizer is optional.
-HAS_DEPLOYED_MODEL = model_loaded
-if not HAS_DEPLOYED_MODEL:
-    print("⚠ No model available. Will try embedder regressor or heuristic.")
 
 # -----------------------------
 # BASIC TEST ROUTE
@@ -97,7 +80,7 @@ def analyze_data(data: CountryData):
     )
 
     # AI MODEL PREDICTION - use feature-based model if available
-    if HAS_DEPLOYED_MODEL and model is not None:
+    if False:
         try:
             # Extract heuristic summary (explanation + top articles) and compute features
             heuristic = compute_risk_from_news(articles)
@@ -234,45 +217,27 @@ class PredictRequest(BaseModel):
 
 @app.post("/api/predict")
 def api_predict(req: PredictRequest):
-    try:
-        if req.features:
-            out = predict_from_features(req.features)
-        else:
-            combined = (req.text or "") + (" " + req.country if req.country else "")
-            out = predict_text(combined, extras={})
-
-        try:
-            store_risk(req.country or "UNKNOWN", out["risk_score"])
-        except:
-            pass
-
-        return out
-
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    return {
+        "message": "Legacy prediction disabled. Use /api/supply-chain/predict"
+    }
     
-@app.post("/predict")
-def predict(data: dict):
-    f = data["features"]
+# -----------------------------
+# NEW SUPPLY CHAIN RISK PREDICTION
+# -----------------------------
+class SupplyChainRiskRequest(BaseModel):
+    political_stability_index: float
+    logistics_performance_index: float
+    supplier_financial_health: float
+    disaster_exposure_score: float
+    trade_dependency_ratio: float
+    historical_disruption_rate: float
+    esg_risk_score: float
 
-    # Allow both dict and list
-    if isinstance(f, dict):
-        features = [
-            f["news_negative_pct"],
-            f["keyword_score"],
-            f["weather_risk"],
-            f["port_delay_index"],
-            f["supplier_concentration"],
-            f["hist_delay"]
-        ]
-    elif isinstance(f, list):
-        features = f
-    else:
-        raise ValueError("Invalid format for 'features'")
 
-    pred = model.predict([features])[0]
-
-    return {"prediction": float(pred)}
+@app.post("/api/supply-chain/predict")
+def predict_supply_chain_risk(request: SupplyChainRiskRequest):
+    result = risk_model.predict(request.dict())
+    return result
 
 
 
@@ -304,8 +269,8 @@ def login_user(user: UserLogin):
 def test():
     return {"message": "Backend connected successfully!"}
 
-from routes.predict import router as predict_router
-app.include_router(predict_router, prefix="/api")
+# from routes.predict import router as predict_router
+# app.include_router(predict_router, prefix="/api")
 
 
 

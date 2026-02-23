@@ -13,7 +13,7 @@ export default function TrainPage() {
     setMetrics(null);
 
     try {
-      const res = await fetch("http://127.0.0.1:8000/api/train", {
+      const res = await fetch("http://127.0.0.1:3000/api/train", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
       });

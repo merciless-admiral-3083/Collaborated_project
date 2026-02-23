@@ -8,7 +8,7 @@ export default function SummaryDashboard() {
   const [data, setData] = useState<any>(null);
 
   useEffect(() => {
-    fetch("http://localhost:8000/api/global-summary")
+    fetch("http://localhost:3000/api/global-summary")
       .then(res => res.json())
       .then(setData)
       .catch(console.error);

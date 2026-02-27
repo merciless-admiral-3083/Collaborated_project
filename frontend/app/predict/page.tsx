@@ -86,41 +86,44 @@ export default function PredictPage() {
   };
 
   const handlePredict = async () => {
-    setLoading(true);
-    setError("");
-    setResult(null);
+  setLoading(true);
+  setError("");
+  setResult(null);
 
-    try {
-      const response = await fetch("http://localhost:3000/predict", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          features: [
-            Number(form.news_negative_pct),
-            Number(form.keyword_score),
-            Number(form.weather_risk),
-            Number(form.port_delay_index),
-            Number(form.supplier_concentration),
-            Number(form.hist_delay),
-          ],
-        }),
-      });
+  try {
+    const token = localStorage.getItem("access_token");
 
-      const data = await response.json();
+    const response = await fetch("http://localhost:8000/api/predict", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        news_negative_pct: Number(form.news_negative_pct),
+        keyword_score: Number(form.keyword_score),
+        weather_risk: Number(form.weather_risk),
+        port_delay_index: Number(form.port_delay_index),
+        supplier_concentration: Number(form.supplier_concentration),
+        hist_delay: Number(form.hist_delay),
+      }),
+    });
 
-      if (response.ok) {
-        setResult(data.prediction);
-      } else {
-        setError(data.detail || "Prediction error");
-      }
-    } catch (err) {
-      setError("Server not reachable");
+    const data = await response.json();
+
+    if (response.ok) {
+      setResult(data.prediction);
+    } else {
+      setError(data.detail || "Prediction error");
     }
+  } catch (err) {
+    setError("Server not reachable");
+  }
 
-    setLoading(false);
-  };
+  setLoading(false);
+};
+
+      
 
   return (
     <div className="max-w-xl mx-auto p-6">

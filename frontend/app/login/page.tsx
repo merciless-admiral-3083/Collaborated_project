@@ -16,7 +16,7 @@ export default function LoginPage() {
     setError("");
 
     try {
-      const res = await fetch("http://127.0.0.1:3000/login", {
+      const res = await fetch("http://127.0.0.1:8000/api/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
@@ -31,7 +31,7 @@ export default function LoginPage() {
       }
 
       // Save token
-      localStorage.setItem("token", data.access_token);
+      localStorage.setItem("access_token", data.access_token);
 
       router.push("/dashboard");
     } catch (err) {

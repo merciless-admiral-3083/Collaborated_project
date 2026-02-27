@@ -16,7 +16,6 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 60
 hasher = pbkdf2_sha256
 
 # Temporary in-memory DB
-users_db = {}
 
 class RegisterModel(BaseModel):
     name: str
@@ -34,34 +33,36 @@ def create_access_token(data: dict):
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
 
+from database.user_repository import create_user, get_user_by_email
+
 @router.post("/register")
-def register(user: RegisterModel):
-    if user.email in users_db:
+async def register(user: RegisterModel):
+    existing_user = get_user_by_email(user.email)
+    if existing_user:
         raise HTTPException(status_code=400, detail="User already exists")
 
-    # Hash password using PBKDF2-SHA256 (compatible with passlib)
     hashed_pw = hasher.hash(user.password)
 
-    users_db[user.email] = {
+    user_data = {
         "name": user.name,
         "email": user.email,
-        "password": hashed_pw
+        "hashed_password": hashed_pw
     }
 
-    return {"message": "Registration successful"}
+    user_id = create_user(user_data)
+
+    return {"message": "Registration successful", "user_id": user_id}
 
 
 @router.post("/login")
-def login(user: LoginModel):
-    if user.email not in users_db:
+async def login(user: LoginModel):
+    db_user = get_user_by_email(user.email)
+    if not db_user:
         raise HTTPException(status_code=400, detail="Invalid email or password")
 
-    db_user = users_db[user.email]
-
-    # Verify using PBKDF2-SHA256
-    if not hasher.verify(user.password, db_user["password"]):
+    if not hasher.verify(user.password, db_user["hashed_password"]):
         raise HTTPException(status_code=400, detail="Invalid email or password")
 
-    token = create_access_token({"sub": user.email})
+    token = create_access_token({"sub": str(db_user["_id"])})
 
     return {"access_token": token, "token_type": "bearer"}

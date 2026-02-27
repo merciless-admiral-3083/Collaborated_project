@@ -34,7 +34,8 @@ from datetime import datetime
 from pydantic import BaseModel
 from config.db import predictions_collection
 import joblib, os
-
+from fastapi import Depends
+from auth.dependencies import get_current_user
 router = APIRouter()
 
 MODEL_PATH = os.path.join(os.path.dirname(__file__), "..", "ml", "model.pkl")
@@ -49,7 +50,10 @@ class PredictionInput(BaseModel):
     hist_delay: float
 
 @router.post("/predict")
-async def predict_risk(data: PredictionInput):
+async def predict_risk(
+    data: PredictionInput,
+    current_user: dict = Depends(get_current_user)
+):
     features = [
         data.news_negative_pct,
         data.keyword_score,
@@ -62,10 +66,11 @@ async def predict_risk(data: PredictionInput):
 
     # Save to MongoDB (this will auto-create DB & collection if not exists)
     record = {
-        "input_features": data.dict(),
-        "prediction": prediction,
-        "timestamp": datetime.utcnow()
+    "user_id": str(current_user["_id"]),
+    "input_features": data.dict(),
+    "prediction": prediction,
+    "timestamp": datetime.utcnow()
     }
-    inserted = predictions_collection.insert_one(record)
+    inserted = await predictions_collection.insert_one(record)
 
     return {"prediction": prediction, "id": str(inserted.inserted_id)}

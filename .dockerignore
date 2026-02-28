@@ -12,3 +12,16 @@ backend/__pycache__
 frontend/.next
 *.log
 *.DS_Store
+venv
+node_modules
+.git
+.gitignore
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.env
+.env.local
+frontend
+.vscode
+sentence-transformers 

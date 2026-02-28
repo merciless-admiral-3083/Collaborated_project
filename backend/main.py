@@ -26,6 +26,13 @@ from app.routes.auth import router as auth_router
 from ml.train import train as train_model
 from deployed_model import predict_text, predict_from_features
 
+#login
+from fastapi import HTTPException
+from passlib.context import CryptContext
+from jose import jwt
+from datetime import datetime, timedelta
+from database import db  # adjust based on your actual DB import
+
 # -----------------------------
 # ENV + APP INIT
 # -----------------------------
@@ -295,18 +302,47 @@ class UserLogin(BaseModel):
     password: str
 
 
+# @app.post("/login")
+# def login_user(user: UserLogin):
+#     # Here you can add DB/auth logic
+#     return {"message": "Login successful", "email": user.email}
+
+# @app.get("/test")
+# def test():
+#     return {"message": "Backend connected successfully!"}
+
+# from routes.predict import router as predict_router
+# app.include_router(predict_router, prefix="/api")
+SECRET_KEY = "3991ff6de703a5f502c5d35ad366a7491d08e3e12cc06742669897f39377f434  "
+ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES = 60
+
+pwd_context = CryptContext(schemes=["pbkdf2_sha256"], deprecated="auto")
+
+
 @app.post("/login")
 def login_user(user: UserLogin):
-    # Here you can add DB/auth logic
-    return {"message": "Login successful", "email": user.email}
 
-@app.get("/test")
-def test():
-    return {"message": "Backend connected successfully!"}
+    existing_user = db.users.find_one({"email": user.email})
 
-from routes.predict import router as predict_router
-app.include_router(predict_router, prefix="/api")
+    if not existing_user:
+        raise HTTPException(status_code=401, detail="Invalid credentials")
 
+    if not pwd_context.verify(user.password, existing_user["hashed_password"]):
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+
+    payload = {
+        "sub": existing_user["email"],
+        "role": existing_user.get("role", "user"),
+        "exp": datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    }
+
+    access_token = jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
+
+    return {
+        "access_token": access_token,
+        "token_type": "bearer"
+    }
 
 
 # # main.py
@@ -329,3 +365,71 @@ app.include_router(predict_router, prefix="/api")
 # @app.get("/hello")
 # async def hello():
 #     return {"message": "Hello from FastAPI!"}
+
+from auth.roles import require_role
+
+@app.get("/admin/users")
+def get_all_users(current_user: dict = Depends(require_role("admin"))):
+    users = list(db.users.find({}, {"hashed_password": 0}))
+    for user in users:
+        user["_id"] = str(user["_id"])
+    return users
+
+#admin route
+
+from auth.roles import require_role
+from ml.retrain_service import retrain_model
+from fastapi import Depends
+from fastapi import BackgroundTasks
+from ml.retrain_service import retrain_model_background
+
+@app.post("/api/admin/retrain")
+def admin_retrain(
+    background_tasks: BackgroundTasks,
+    current_user: dict = Depends(require_role("admin"))
+):
+    background_tasks.add_task(retrain_model_background)
+
+    return {
+        "message": "Retraining started in background"
+    }
+
+@app.get("/api/admin/model-version")
+def get_model_version(current_user: dict = Depends(require_role("admin"))):
+    try:
+        with open("ml/model_version.txt", "r") as f:
+            version = f.read()
+    except:
+        version = "unknown"
+
+    return {"model_version": version}
+
+
+@app.get("/api/admin/retrain-status")
+def get_retrain_status(current_user: dict = Depends(require_role("admin"))):
+
+    latest_log = db.retrain_logs.find_one(
+        {},
+        sort=[("started_at", -1)]
+    )
+
+    if not latest_log:
+        return {"message": "No retraining history"}
+
+    latest_log["_id"] = str(latest_log["_id"])
+
+    return latest_log
+
+from services.admin_analytics import get_admin_stats
+@app.get("/api/admin/analytics")
+def admin_dashboard(current_user: dict = Depends(require_role("admin"))):
+    return get_admin_stats()
+
+org = db.organizations.find_one({"name": user.organization_name})
+
+if not org:
+    org_id = db.organizations.insert_one({
+        "name": user.organization_name,
+        "created_at": datetime.utcnow(),
+        "plan": "free"
+    }).inserted_id

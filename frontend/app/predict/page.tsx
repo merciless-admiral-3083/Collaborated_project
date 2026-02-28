@@ -91,7 +91,7 @@ export default function PredictPage() {
     setResult(null);
 
     try {
-      const response = await fetch("http://localhost:8000/predict", {
+      const response = await fetch("http://localhost:3000/predict", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

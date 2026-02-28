@@ -110,3 +110,5 @@ def predict_text(text: str) -> Dict:
         "status": status,
         "risk_label": status,
     }
+from ml.deployed_model import reload_model
+reload_model()

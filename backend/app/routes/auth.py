@@ -42,11 +42,20 @@ def register(user: RegisterModel):
     # Hash password using PBKDF2-SHA256 (compatible with passlib)
     hashed_pw = hasher.hash(user.password)
 
-    users_db[user.email] = {
-        "name": user.name,
-        "email": user.email,
-        "password": hashed_pw
-    }
+    # users_db[user.email] = {
+    #     "name": user.name,
+    #     "email": user.email,
+    #     "password": hashed_pw
+    # }
+    from datetime import datetime
+
+    db.users.insert_one({
+    "name": user.name,
+    "email": user.email,
+    "hashed_password": pwd_context.hash(user.password),
+    "role": "user",
+    "created_at": datetime.utcnow()
+})
 
     return {"message": "Registration successful"}
 

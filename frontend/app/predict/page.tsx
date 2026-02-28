@@ -86,12 +86,12 @@ export default function PredictPage() {
   };
 
   const handlePredict = async () => {
-    setLoading(true);
-    setError("");
-    setResult(null);
+  setLoading(true);
+  setError("");
+  setResult(null);
 
     try {
-      const response = await fetch("http://localhost:3000/predict", {
+      const response = await fetch("http://localhost:8000/predict", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -108,19 +108,21 @@ export default function PredictPage() {
         }),
       });
 
-      const data = await response.json();
+    const data = await response.json();
 
-      if (response.ok) {
-        setResult(data.prediction);
-      } else {
-        setError(data.detail || "Prediction error");
-      }
-    } catch (err) {
-      setError("Server not reachable");
+    if (response.ok) {
+      setResult(data.prediction);
+    } else {
+      setError(data.detail || "Prediction error");
     }
+  } catch (err) {
+    setError("Server not reachable");
+  }
 
-    setLoading(false);
-  };
+  setLoading(false);
+};
+
+      
 
   return (
     <div className="max-w-xl mx-auto p-6">

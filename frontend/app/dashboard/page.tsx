@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid,
   ResponsiveContainer, BarChart, Bar
@@ -17,46 +18,80 @@ interface TopCountry {
 }
 
 export default function DashboardPage() {
+  const router = useRouter();
+
   const [history, setHistory] = useState<HistoryPoint[]>([]);
   const [top, setTop] = useState<TopCountry[]>([]);
+  const [authorized, setAuthorized] = useState(false);
 
-  useEffect(() => {
-    // --- Global Summary ---
-    fetch("/api/global_summary")
-      .then((res) => res.json())
-      .then((data) => {
-        if (data?.country_risk_map) {
-          const sorted = Object.entries(data.country_risk_map)
-            .map(([country, risk]) => ({
-              country,
-              risk: Number(risk),
-            }))
-            .sort((a, b) => b.risk - a.risk)
-            .slice(0, 8);
+useEffect(() => {
+  const token = localStorage.getItem("access_token");
 
-          setTop(sorted);
-        }
-      })
-      .catch((err) => console.error("Error loading global summary:", err));
+  if (!token) {
+    router.push("/login");
+    return;
+  }
 
-    // --- History ---
-    fetch(`/api/history/India?days=30`)
-      .then((res) => res.json())
-      .then((data) => {
-        if (Array.isArray(data)) {
-          const formatted = data.reverse().map((d) => ({
-            date: d.ts.split("T")[0],
-            risk: d.risk_score,
-          }));
-          setHistory(formatted);
-        }
-      })
-      .catch((err) => console.error("Error loading history:", err));
-  }, []);
+  setAuthorized(true);
+
+  // --- Global Summary ---
+  fetch("http://localhost:8000/api/global_summary", {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  })
+    .then(async (res) => {
+      if (res.status === 401) {
+        localStorage.removeItem("access_token");
+        router.push("/login");
+        return null;
+      }
+      return res.json();
+    })
+    .then((data) => {
+      if (data?.country_risk_map) {
+        const sorted = Object.entries(data.country_risk_map)
+          .map(([country, risk]) => ({
+            country,
+            risk: Number(risk),
+          }))
+          .sort((a, b) => b.risk - a.risk)
+          .slice(0, 8);
+
+        setTop(sorted);
+      }
+    })
+    .catch((err) => console.error("Error loading global summary:", err));
+
+  // --- History ---
+  fetch("http://localhost:8000/api/history/India?days=30", {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  })
+    .then(async (res) => {
+      if (res.status === 401) {
+        localStorage.removeItem("access_token");
+        router.push("/login");
+        return null;
+      }
+      return res.json();
+    })
+    .then((data) => {
+      if (Array.isArray(data)) {
+        const formatted = data.reverse().map((d) => ({
+          date: d.ts.split("T")[0],
+          risk: d.risk_score,
+        }));
+        setHistory(formatted);
+      }
+    })
+    .catch((err) => console.error("Error loading history:", err));
+}, [router]);
 
 
 
-
+if (!authorized) return null;
   return (
     <div className="pb-20">
 

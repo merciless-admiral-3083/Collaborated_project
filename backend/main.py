@@ -337,17 +337,17 @@ def admin_retrain(
 ):
     background_tasks.add_task(retrain_model_background)
 
+
     return {
         "message": "Retraining started in background"
     }
-
 @app.get("/api/admin/model-version")
 def get_model_version(current_user: dict = Depends(require_role("admin"))):
     try:
         with open("ml/model_version.txt", "r") as f:
             version = f.read()
     except:
-        version = "unknown"
+        version = "unknown" 
 
     return {"model_version": version}
 

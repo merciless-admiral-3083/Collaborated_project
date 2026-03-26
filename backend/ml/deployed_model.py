@@ -66,3 +66,19 @@ class RiskModel:
         )
 
         return [feature for feature, _ in sorted_features[:3]]
+
+
+# Helper to manage singleton model in running server
+_model_instance = None
+
+def get_risk_model():
+    global _model_instance
+    if _model_instance is None:
+        _model_instance = RiskModel()
+    return _model_instance
+
+
+def reload_model():
+    global _model_instance
+    _model_instance = RiskModel()
+    return _model_instance

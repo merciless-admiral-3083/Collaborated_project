@@ -1,5 +1,5 @@
 from datetime import datetime
-from database.mongo import db
+from app.db import db
 
 predictions_collection = db["predictions"]
 

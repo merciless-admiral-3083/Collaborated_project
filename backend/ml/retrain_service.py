@@ -110,3 +110,9 @@ def retrain_model_background():
                 "error": str(e)
             }}
         )
+
+
+def retrain_model():
+    # Synchronous wrapper for retrain_model_background
+    retrain_model_background()
+    return {"message": "Retraining started"}

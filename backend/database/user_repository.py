@@ -1,6 +1,6 @@
 from datetime import datetime
 from bson import ObjectId
-from config.db import db
+from app.db import db
 
 users_collection = db["users"]
 

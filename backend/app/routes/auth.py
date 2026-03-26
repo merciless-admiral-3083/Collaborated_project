@@ -43,10 +43,11 @@ async def register(user: RegisterModel):
 
     hashed_pw = hasher.hash(user.password)
 
-    users_db[user.email] = {
+    user_data = {
         "name": user.name,
         "email": user.email,
-        "password": hashed_pw
+        "hashed_password": hashed_pw,
+        "created_at": datetime.utcnow(),
     }
 
     user_id = create_user(user_data)
